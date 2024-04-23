@@ -127,7 +127,7 @@ if __name__ == "__main__":
     if args.get_updates is not None:
         assert(len(args.get_updates) >= 4)
         start_date = args.get_updates[0]
-        end_date = (pd.Timestamp(args.get_updates[1]) - pd.Timedelta("1 day")).strftime("%Y-%m-%d")
+        end_date = args.get_updates[1]
         data_dir = args.get_updates[2]
         output_file = args.get_updates[3]
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         log(f"Getting updates for {len(game_ids)} games")
 
         batter_names = []
-        for game_id in tqdm.tqdm(game_ids[:3]):
+        for game_id in tqdm.tqdm(game_ids):
             batter_ids = [x["personId"] for x in statsapi.boxscore_data(game_id)["awayBatters"] if x["personId"] != 0]
             batter_ids += [x["personId"] for x in statsapi.boxscore_data(game_id)["homeBatters"] if x["personId"] != 0]
             batter_names += [statsapi.lookup_player(bid)[0]["nameFirstLast"] for bid in batter_ids]
