@@ -5,6 +5,7 @@ import tqdm
 import json
 import pandas as pd
 import numpy as np
+import statsapi
 from pymongo import MongoClient
 from dotenv import load_dotenv
 load_dotenv()
@@ -102,6 +103,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--download", nargs="+", help="Download data")
     parser.add_argument("--get_updates", nargs="+", help="Get updates for model results for database")
+    parser.add_argument("--get_updates_today", nargs="+", help="Get updates for model results today's games")
     parser.add_argument("--push_to_db", nargs="+", help="Push updates to MongoDB")
     args = parser.parse_args()
 
@@ -125,7 +127,7 @@ if __name__ == "__main__":
     if args.get_updates is not None:
         assert(len(args.get_updates) >= 4)
         start_date = args.get_updates[0]
-        end_date = args.get_updates[1]
+        end_date = (pd.Timestamp(args.get_updates[1]) - pd.Timedelta("1 day")).strftime("%Y-%m-%d")
         data_dir = args.get_updates[2]
         output_file = args.get_updates[3]
 
@@ -150,7 +152,7 @@ if __name__ == "__main__":
                 if date_greater_than_or_equal(pd.Timestamp(game.date), pd.Timestamp(start_date)) and date_greater_than_or_equal(pd.Timestamp(end_date), pd.Timestamp(game.date)):
                     for player_name in game.get_hitters():
                         stats = r.player_map.get_player(player_name).get_stats_before_game(game_id, num_games_threshold=0)
-                        input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(np.float)])
+                        input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
                         predicted_prob = model.predict_proba(input_data)[0][1]
                         did_hit_home_run = r.player_map.get_player(player_name).did_hit_home_run(game_id)
                         if did_hit_home_run is None:
@@ -166,8 +168,67 @@ if __name__ == "__main__":
                             "home_run_odds": predicted_prob,
                             "did_hit_hr": c,
                             "stats": dict(stats),
+                            "game_id": game_id,
                         }
                         items.append(item)
+
+        with open(output_file, "w") as f:
+            json.dump(items, f, cls=NpEncoder)
+
+    if args.get_updates_today is not None:
+        assert(len(args.get_updates_today) >= 2)
+        output_file = args.get_updates_today[0]
+        data_dir = args.get_updates_today[1]
+
+        schedule = statsapi.schedule()
+        game_ids = [x["game_id"] for x in schedule]
+        log(f"Getting updates for {len(game_ids)} games")
+
+        batter_names = []
+        for game_id in tqdm.tqdm(game_ids[:3]):
+            batter_ids = [x["personId"] for x in statsapi.boxscore_data(game_id)["awayBatters"] if x["personId"] != 0]
+            batter_ids += [x["personId"] for x in statsapi.boxscore_data(game_id)["homeBatters"] if x["personId"] != 0]
+            batter_names += [statsapi.lookup_player(bid)[0]["nameFirstLast"] for bid in batter_ids]
+        log(f"Found {len(batter_names)} batters today")
+
+        r = Runner(STAT_NAMES, data_dir=data_dir)
+        r.build_player_map_for_all_games()
+
+        for model_config in models:
+            log(f"Getting updates for model {model_config['name']}")
+            model_path = model_config["model_path"]
+            scaler_path = model_config["scaler_path"]
+
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+            with open(scaler_path, "rb") as f:
+                scaler = pickle.load(f)
+
+            items = []
+            for player_name in batter_names:
+                if r.player_map.get_player(player_name) is None:
+                    continue
+                stats = r.player_map.get_player(player_name).get_latest_stats()
+                input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
+                predicted_prob = model.predict_proba(input_data)[0][1]
+                did_hit_home_run = r.player_map.get_player(player_name).did_hit_home_run(game_id)
+                assert(did_hit_home_run is None)
+                if did_hit_home_run is None:
+                    c = 2
+                elif did_hit_home_run:
+                    c = 1
+                else:
+                    c = 0
+                item = {
+                    "player_name": player_name,
+                    "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
+                    "model": model_config["name"],
+                    "home_run_odds": predicted_prob,
+                    "did_hit_hr": c,
+                    "stats": dict(stats),
+                    "game_id": -1,
+                }
+                items.append(item)
 
         with open(output_file, "w") as f:
             json.dump(items, f, cls=NpEncoder)

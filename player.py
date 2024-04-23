@@ -110,3 +110,8 @@ class Player(BaseClass):
             return None
         return "HR" in self.stats.iloc[self.stats.index.get_indexer([game_id])[0]]["details"]
 
+    def get_latest_stats(self):
+        ret = self.stats.iloc[- 1].copy()
+        ret["details"] = ""
+        return ret
+

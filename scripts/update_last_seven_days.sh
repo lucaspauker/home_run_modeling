@@ -40,10 +40,8 @@ fi
 DATE_ONE_WEEK_AGO=$(printf "%d-%02d-%02d" $one_week_ago_year $one_week_ago_month $one_week_ago_day)
 CURRENT_DATE=$(date +%F)
 
-ECHO $CURRENT_DATE
-ECHO $DATE_ONE_WEEK_AGO
-ECHO $SEASON_START_DATE
-
 python main.py --download $DATE_ONE_WEEK_AGO $CURRENT_DATE  ./game_data/2024/
+python main.py --get_updates_today ./update_data/updates_today.json ./game_data/2024/
+python main.py --push_to_db ./update_data/updates_today.json
 python main.py --get_updates $DATE_ONE_WEEK_AGO $CURRENT_DATE ./game_data/2024/ ./update_data/updates.json
 python main.py --push_to_db ./update_data/updates.json
