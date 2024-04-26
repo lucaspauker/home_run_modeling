@@ -16,6 +16,7 @@ from config.models import models
 
 STAT_NAMES = ["Batting Average", "On-Base%", "Slugging %", "At Bats", "Home Runs", "Runs Batted In",\
               "Average Home Runs", "Average Runs Batted In", "At Bats Per Game", "details"]
+MIN_ABS_TO_PUSH = 50
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -152,6 +153,9 @@ if __name__ == "__main__":
                 if date_greater_than_or_equal(pd.Timestamp(game.date), pd.Timestamp(start_date)) and date_greater_than_or_equal(pd.Timestamp(end_date), pd.Timestamp(game.date)):
                     for player_name in game.get_hitters():
                         stats = r.player_map.get_player(player_name).get_stats_before_game(game_id, num_games_threshold=0)
+                        if stats is not None and stats["At Bats"] < MIN_ABS_TO_PUSH:
+                            log(f"Not enough ABs ({stats['At Bats']}) for {player_name}, skipping")
+                            continue
                         input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
                         predicted_prob = model.predict_proba(input_data)[0][1]
                         did_hit_home_run = r.player_map.get_player(player_name).did_hit_home_run(game_id)
@@ -209,6 +213,9 @@ if __name__ == "__main__":
                 if r.player_map.get_player(player_name) is None:
                     continue
                 stats = r.player_map.get_player(player_name).get_latest_stats()
+                if stats is not None and stats["At Bats"] < MIN_ABS_TO_PUSH:
+                    log(f"Not enough ABs ({stats['At Bats']}) for {player_name}, skipping")
+                    continue
                 input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
                 predicted_prob = model.predict_proba(input_data)[0][1]
                 did_hit_home_run = r.player_map.get_player(player_name).did_hit_home_run(game_id)
