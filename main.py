@@ -9,14 +9,15 @@ import statsapi
 from pymongo import MongoClient
 from dotenv import load_dotenv
 load_dotenv()
-
 from scraper import BaseballReferenceScraper
+from sportsbook_odds_data_handler import SportsbookOddsDataHandler
 from runner import Runner
 from config.models import models
 
 STAT_NAMES = ["Batting Average", "On-Base%", "Slugging %", "At Bats", "Home Runs", "Runs Batted In",\
               "Average Home Runs", "Average Runs Batted In", "At Bats Per Game", "details"]
 MIN_ABS_TO_PUSH = 50
+ACCEPTED_SPORTSBOOKS = ["draftkings", "fanduel", "pointsbetus", "betrivers"]
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -106,6 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("--get_updates", nargs="+", help="Get updates for model results for database")
     parser.add_argument("--get_updates_today", nargs="+", help="Get updates for model results today's games")
     parser.add_argument("--push_to_db", nargs="+", help="Push updates to MongoDB")
+    parser.add_argument("--update_sportsbook_odds", action="store_true", help="Push sportsbook odds updates to MongoDB")
     args = parser.parse_args()
 
     if args.download is not None:
@@ -257,4 +259,18 @@ if __name__ == "__main__":
         with open(output_file, "r") as f:
             data_to_add = json.load(f)
             add_data(collection, data_to_add)
+
+    if args.update_sportsbook_odds:
+        h = SportsbookOddsDataHandler()
+        h.log("Loaded handler")
+        games_to_update = h.get_games_to_update(threshold_minutes=60, update_all_games=False)
+        h.log(f"Updating {len(games_to_update)} games")
+        if len(games_to_update) > 0:
+            odds_for_games = h.get_odds_for_games(games_to_update, ACCEPTED_SPORTSBOOKS)
+            if len(odds_for_games) > 0:
+                db = get_database()
+                collection = db["data"]
+                h.log("Connected to db and collection")
+                h.upload_results_to_db(odds_for_games, collection)
+
 

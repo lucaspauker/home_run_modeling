@@ -18,3 +18,7 @@ python main.py --get_updates_today ./update_data/updates_today.json ./game_data/
 python main.py --push_to_db ./update_data/updates.json
 python main.py --push_to_db ./update_data/updates_today.json
 ```
+
+```
+python main.py --update_sportsbook_odds
+```
