@@ -171,9 +171,9 @@ class Player(BaseClass):
 
     def get_stats_before_game(self, game_id, game_date, num_games_threshold=0, include_last_season_data=True):
         i = self.stats.index.get_indexer([game_id])[0]
-        if i - 1 < num_games_threshold:
-            return None
         hitting_stats = self.stats.iloc[i - 1]
+        if "Games Played" in hitting_stats and int(hitting_stats["Games Played"]) < num_games_threshold:
+            return None
 
         if include_last_season_data:
             last_season_stats = self.get_season_stats(game_date.year - 1)
@@ -194,6 +194,14 @@ class Player(BaseClass):
             return None
         return "HR" in self.stats.iloc[self.stats.index.get_indexer([game_id])[0]]["details"]
 
-    def get_latest_stats(self):
-        return self.stats.iloc[- 1]
+    def get_latest_stats(self, include_last_season_data=True):
+        hitting_stats = self.stats.iloc[-1]
+        if include_last_season_data:
+            last_season_stats = self.get_season_stats(pd.Timestamp.now().year - 1)
+            if last_season_stats is None:
+                last_season_stats = {"Last Season " + x : hitting_stats[x] for x in hitting_stats.keys()}
+            hitting_stats = dict(hitting_stats)
+            hitting_stats.update(last_season_stats)
+            hitting_stats = pd.Series(hitting_stats)
+        return hitting_stats
 
