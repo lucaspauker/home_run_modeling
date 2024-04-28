@@ -175,7 +175,7 @@ if __name__ == "__main__":
                             "model": model_config["name"],
                             "home_run_odds": predicted_prob,
                             "did_hit_hr": c,
-                            "stats": dict(stats),
+                            "stats": dict(stats[["Batting Average", "Home Runs", "Runs Batted In", "On-Base%", "Slugging %", "At Bats", "Games Played"]]),
                             "game_id": game_id,
                         }
                         items.append(item)
@@ -236,7 +236,7 @@ if __name__ == "__main__":
                     "model": model_config["name"],
                     "home_run_odds": predicted_prob,
                     "did_hit_hr": c,
-                    "stats": dict(stats),
+                    "stats": dict(stats[["Batting Average", "Home Runs", "Runs Batted In", "On-Base%", "Slugging %", "At Bats", "Games Played"]]),
                     "game_id": -1,
                 }
                 items.append(item)
