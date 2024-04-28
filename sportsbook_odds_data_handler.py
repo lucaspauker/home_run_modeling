@@ -153,7 +153,7 @@ class SportsbookOddsDataHandler(BaseClass):
                     new_item = queried_item.copy()
                     new_item["odds_data"] = odds_data
                     did_update = False
-                    if "odds_data" not in queried_item or queried_item["odds_data"] != odds_data:
+                    if "odds_data" not in queried_item or queried_item["odds_data"]["data"] != odds_data["data"]:
                         collection.replace_one(queried_item, new_item)
                         self.log(f"Updating {new_item['player_name']} {new_item['date']} {new_item['model']} {new_item['did_hit_hr']} {new_item['home_run_odds']}")
                         did_update = True
