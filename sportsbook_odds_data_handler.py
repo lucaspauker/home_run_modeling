@@ -35,7 +35,7 @@ class SportsbookOddsDataHandler(BaseClass):
                 continue
             self.log(f"Processing game {game['game_id']} at {game['game_datetime']}")
             game_time = pd.Timestamp(game["game_datetime"]).tz_convert("GMT")
-            current_time = pd.Timestamp.now().tz_localize("America/Chicago").tz_convert("GMT")
+            current_time = pd.Timestamp.now().tz_localize(os.getenv("TIME_ZONE")).tz_convert("GMT")
             if update_all_games and game_time > current_time:
                 self.log(f"Game {game['game_id']} at {game['game_datetime']} added to games to updates")
                 games_to_update.append(game)
@@ -86,7 +86,7 @@ class SportsbookOddsDataHandler(BaseClass):
             # Check if event is in the input games to fetch
             should_skip = True
             for game_to_fetch in games:
-                current_time = pd.Timestamp.now().tz_localize("America/Chicago").tz_convert("GMT")
+                current_time = pd.Timestamp.now().tz_localize(os.getenv("TIME_ZONE")).tz_convert("GMT")
                 threshold = pd.Timedelta("10 minutes")
                 if pd.Timestamp(event["commence_time"]) + threshold > pd.Timestamp(game_to_fetch["game_datetime"]) and\
                         pd.Timestamp(event["commence_time"]) - threshold < pd.Timestamp(game_to_fetch["game_datetime"]) and\
