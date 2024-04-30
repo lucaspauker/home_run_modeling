@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--get_updates", nargs="+", help="Get updates for model results for database")
     parser.add_argument("--get_updates_today", nargs="+", help="Get updates for model results today's games")
     parser.add_argument("--push_to_db", nargs="+", help="Push updates to MongoDB")
-    parser.add_argument("--update_sportsbook_odds", action="store_true", help="Push sportsbook odds updates to MongoDB")
+    parser.add_argument("--update_sportsbook_odds", nargs="+", help="Push sportsbook odds updates to MongoDB")
     args = parser.parse_args()
 
     if args.download is not None:
@@ -262,10 +262,16 @@ if __name__ == "__main__":
             data_to_add = json.load(f)
             add_data(collection, data_to_add)
 
-    if args.update_sportsbook_odds:
+    if args.update_sportsbook_odds is not None:
+        assert(len(args.update_sportsbook_odds) >= 1)
+        threshold_minutes = int(args.update_sportsbook_odds[0])
+
         h = SportsbookOddsDataHandler()
         h.log("Loaded handler")
-        games_to_update = h.get_games_to_update(threshold_minutes=60, update_all_games=False)
+        if threshold_minutes >= 0:
+            games_to_update = h.get_games_to_update(threshold_minutes=threshold_minutes, update_all_games=False)
+        else:
+            games_to_update = h.get_games_to_update(update_all_games=True)
         h.log(f"Updating {len(games_to_update)} games")
         if len(games_to_update) > 0:
             odds_for_games = h.get_odds_for_games(games_to_update, ACCEPTED_SPORTSBOOKS)

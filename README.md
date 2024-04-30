@@ -20,5 +20,5 @@ python main.py --push_to_db ./update_data/updates_today.json
 ```
 
 ```
-python main.py --update_sportsbook_odds
+python main.py --update_sportsbook_odds 60
 ```
