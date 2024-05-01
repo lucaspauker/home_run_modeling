@@ -192,11 +192,16 @@ if __name__ == "__main__":
         game_ids = [x["game_id"] for x in schedule]
         log(f"Getting updates for {len(game_ids)} games")
 
-        batter_names = []
+        batter_names, batter_teams = [], []
         for game_id in tqdm.tqdm(game_ids):
-            batter_ids = [x["personId"] for x in statsapi.boxscore_data(game_id)["awayBatters"] if x["personId"] != 0]
-            batter_ids += [x["personId"] for x in statsapi.boxscore_data(game_id)["homeBatters"] if x["personId"] != 0]
-            batter_names += [statsapi.lookup_player(bid)[0]["nameFirstLast"] for bid in batter_ids]
+            boxscore_data = statsapi.boxscore_data(game_id)
+            batter_ids = [x["personId"] for x in boxscore_data["awayBatters"] if x["personId"] != 0]
+            batter_ids += [x["personId"] for x in boxscore_data["homeBatters"] if x["personId"] != 0]
+            for bid in batter_ids:
+                player_query = statsapi.lookup_player(bid)[0]["nameFirstLast"]
+                player_team = statsapi.lookup_team(player_query["currentTeam"]["id"])[0]
+                batter_names.append(player_name)
+                batter_teams.append(player_team)
         log(f"Found {len(batter_names)} batters today")
 
         r = Runner(STAT_NAMES, data_dir=data_dir)
@@ -213,7 +218,7 @@ if __name__ == "__main__":
                 scaler = pickle.load(f)
 
             items = []
-            for player_name in batter_names:
+            for player_name, player_team in zip(batter_names, batter_teams):
                 if r.player_map.get_player(player_name) is None:
                     continue
                 stats = r.player_map.get_player(player_name).get_latest_stats()
@@ -232,6 +237,7 @@ if __name__ == "__main__":
                     c = 0
                 item = {
                     "player_name": player_name,
+                    "current_team": player_team,
                     "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
                     "model": model_config["name"],
                     "home_run_odds": predicted_prob,
