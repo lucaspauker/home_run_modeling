@@ -14,8 +14,39 @@ from sportsbook_odds_data_handler import SportsbookOddsDataHandler
 from runner import Runner
 from config.models import models
 
-STAT_NAMES = ["Batting Average", "On-Base%", "Slugging %", "At Bats", "Home Runs", "Runs Batted In",\
-              "Average Home Runs", "Average Runs Batted In", "At Bats Per Game", "Games Played", "details"]
+STAT_NAMES = ["Batting Average",
+              "On-Base%",
+              "Slugging %",
+              "At Bats",
+              "Home Runs",
+              "Runs Batted In",
+              "Hits",
+              "Runs Scored",
+              "Average Home Runs",
+              "Average Runs Batted In",
+              "Average Hits",
+              "Average Runs Scored",
+              "At Bats Per Game",
+              "Games Played",
+              "details"]
+
+PITCHER_STAT_NAMES = ["Earned Run Average",
+                      "Innings Pitched",
+                      "Hits",
+                      "Runs Scored",
+                      "Earned Runs",
+                      "Bases on Balls",
+                      "Strikeouts",
+                      "Home Runs",
+                      "Games Played",
+                      "Batters Faced",
+                      "Innings Pitched Per Game",
+                      "Average Hits",
+                      "Average Runs Scored",
+                      "Average Earned Runs",
+                      "Average Bases on Balls",
+                      "Average Home Runs",
+                      "Average Strikeouts"]
 MIN_ABS_TO_PUSH = 50
 ACCEPTED_SPORTSBOOKS = ["draftkings", "fanduel", "pointsbetus", "betrivers"]
 
@@ -53,6 +84,8 @@ def download(start_date, end_date, data_dir, remove=False):
     for game_id in game_ids:
         try:
             s.get_game_data(game_id)
+        except KeyboardInterrupt:
+            break
         except:
             log("Error", error=True)
             continue
@@ -138,7 +171,7 @@ if __name__ == "__main__":
 
         log(f"Running update mode from {start_date} to {end_date} and saving into {data_dir}")
 
-        r = Runner(STAT_NAMES, data_dir=data_dir)
+        r = Runner(STAT_NAMES, PITCHER_STAT_NAMES, data_dir=data_dir)
         r.build_player_map_for_all_games()
 
         for model_config in models:
@@ -156,9 +189,16 @@ if __name__ == "__main__":
                 game = r.get_game(game_id)
                 if date_greater_than_or_equal(pd.Timestamp(game.date), pd.Timestamp(start_date)) and date_greater_than_or_equal(pd.Timestamp(end_date), pd.Timestamp(game.date)):
                     for player_name in game.get_hitters():
-                        stats = r.player_map.get_player(player_name).get_stats_before_game(game_id, game.date, num_games_threshold=0)
+                        stats = r.get_stats_for_player_before_game(hitter_name,
+                                                                   game_id,
+                                                                   game.date,
+                                                                   include_last_season_data=include_last_season_data,
+                                                                   hitter_games_threshold=0,
+                                                                   pitcher_games_threshold=0)
                         if stats is not None and stats["At Bats"] < MIN_ABS_TO_PUSH:
                             log(f"Not enough ABs ({stats['At Bats']}) for {player_name}, skipping")
+                            continue
+                        if stats is None or len(stats) == 0:
                             continue
                         input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
                         predicted_prob = model.predict_proba(input_data)[0][1]
@@ -192,19 +232,37 @@ if __name__ == "__main__":
         game_ids = [x["game_id"] for x in schedule]
         log(f"Getting updates for {len(game_ids)} games")
 
-        batter_names, batter_teams = [], []
+        batter_names, batter_teams, opposing_pitchers = [], [], []
         for game_id in tqdm.tqdm(game_ids):
             boxscore_data = statsapi.boxscore_data(game_id)
-            batter_ids = [x["personId"] for x in boxscore_data["awayBatters"] if x["personId"] != 0]
-            batter_ids += [x["personId"] for x in boxscore_data["homeBatters"] if x["personId"] != 0]
-            for bid in batter_ids:
-                player_query = statsapi.lookup_player(bid)[0]["nameFirstLast"]
+            away_batter_ids = [x["personId"] for x in boxscore_data["awayBatters"] if x["personId"] != 0]
+            home_batter_ids = [x["personId"] for x in boxscore_data["homeBatters"] if x["personId"] != 0]
+
+            if len(boxscore_data["awayPitchers"]) < 2 or len(boxscore_data["homePitchers"]) < 2:
+                log(f"Pitcher data not found for game {game_id}, skipping", error=True)
+                continue
+            away_pitcher_id = boxscore_data["awayPitchers"][1]["personId"]
+            away_pitcher_name = statsapi.lookup_player(away_pitcher_id)[0]["nameFirstLast"]
+            home_pitcher_id = boxscore_data["homePitchers"][1]["personId"]
+            home_pitcher_name = statsapi.lookup_player(home_pitcher_id)[0]["nameFirstLast"]
+
+            for bid in away_batter_ids:
+                player_query = statsapi.lookup_player(bid)[0]
                 player_team = statsapi.lookup_team(player_query["currentTeam"]["id"])[0]
+                player_name = player_query["nameFirstLast"]
                 batter_names.append(player_name)
                 batter_teams.append(player_team)
+                opposing_pitchers.append(home_pitcher_name)
+            for bid in home_batter_ids:
+                player_query = statsapi.lookup_player(bid)[0]
+                player_team = statsapi.lookup_team(player_query["currentTeam"]["id"])[0]
+                player_name = player_query["nameFirstLast"]
+                batter_names.append(player_name)
+                batter_teams.append(player_team)
+                opposing_pitchers.append(away_pitcher_name)
         log(f"Found {len(batter_names)} batters today")
 
-        r = Runner(STAT_NAMES, data_dir=data_dir)
+        r = Runner(STAT_NAMES, PITCHER_STAT_NAMES, data_dir=data_dir)
         r.build_player_map_for_all_games()
 
         for model_config in models:
@@ -218,10 +276,11 @@ if __name__ == "__main__":
                 scaler = pickle.load(f)
 
             items = []
-            for player_name, player_team in zip(batter_names, batter_teams):
+            for player_name, player_team, pitcher_name in zip(batter_names, batter_teams, opposing_pitchers):
                 if r.player_map.get_player(player_name) is None:
                     continue
                 stats = r.player_map.get_player(player_name).get_latest_stats()
+                stats = r.get_latest_stats_for_player_and_pitcher(player_name, pitcher_name)
                 if stats is not None and stats["At Bats"] < MIN_ABS_TO_PUSH:
                     log(f"Not enough ABs ({stats['At Bats']}) for {player_name}, skipping")
                     continue
