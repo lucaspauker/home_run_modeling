@@ -146,10 +146,10 @@ class Game(BaseClass):
         return self.away_team_pitching_df.iloc[0].to_dict()
 
     def get_home_pitcher(self):
-        return self.home_team_pitching_df["Pitching"][0]
+        return self.home_team_pitching_df["Pitching"].iloc[0]
 
     def get_away_pitcher(self):
-        return self.away_team_pitching_df["Pitching"][0]
+        return self.away_team_pitching_df["Pitching"].iloc[0]
 
     def get_starting_pitchers(self):
         pitching_df = pd.concat([ self.home_team_pitching_df.iloc[:1], self.away_team_pitching_df.iloc[:1] ])

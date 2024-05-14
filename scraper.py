@@ -90,7 +90,7 @@ class BaseballReferenceScraper(BaseClass):
 
     def get_game_data(self, game_id):
         # Check if game is already in data_dir
-        path = os.path.join(self.data_dir, game_id + ".p")
+        path = os.path.join(self.data_dir, game_id + ".json")
         if os.path.exists(path):
             self.log(f"Path {path} exists")
             return

@@ -88,10 +88,14 @@ class Runner(BaseClass):
 
     def get_latest_stats_for_player_and_pitcher(self, player_id, pitcher_id, include_last_season_data=True):
         player = self.player_map.get_hitter(player_id)
+        if player is None:
+            return None
         player_stats = player.get_latest_stats(include_last_season_data=include_last_season_data)
         if player_stats is None:
             return None
         pitcher = self.player_map.get_pitcher(pitcher_id)
+        if pitcher is None:
+            return None
         pitcher_stats = pitcher.get_latest_stats(include_last_season_data=include_last_season_data)
         if pitcher_stats is None:
             return None

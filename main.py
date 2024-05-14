@@ -96,6 +96,7 @@ def get_database():
 
 def add_item(collection, item):
     required_fields = ["player_name", "date", "model", "home_run_odds", "did_hit_hr"]
+    other_fields = ["team_name", "odds_data", "opposing_pitcher"]
     for field in required_fields:
         if field not in item:
             log(f"{field} not in item", error=True)
@@ -108,11 +109,12 @@ def add_item(collection, item):
                                         })
     if queried_item is not None:
         item["_id"] = queried_item["_id"]
-        if "odds_data" in queried_item:
-            item["odds_data"] = queried_item["odds_data"]
+        for field in other_fields:
+            if field in queried_item:
+                item[field] = queried_item[field]
         did_update = False
         for field in required_fields:
-            if item[field] != queried_item[field]:
+            if field in item and field in queried_item and item[field] != queried_item[field]:
                 collection.replace_one(queried_item, item)
                 log(f"Updating {item['player_name']} {item['date']} {item['model']} {item['did_hit_hr']} {item['home_run_odds']}")
                 did_update = True
@@ -248,14 +250,14 @@ if __name__ == "__main__":
 
             for bid in away_batter_ids:
                 player_query = statsapi.lookup_player(bid)[0]
-                player_team = statsapi.lookup_team(player_query["currentTeam"]["id"])[0]
++               player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
                 player_name = player_query["nameFirstLast"]
                 batter_names.append(player_name)
                 batter_teams.append(player_team)
                 opposing_pitchers.append(home_pitcher_name)
             for bid in home_batter_ids:
                 player_query = statsapi.lookup_player(bid)[0]
-                player_team = statsapi.lookup_team(player_query["currentTeam"]["id"])[0]
++               player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
                 player_name = player_query["nameFirstLast"]
                 batter_names.append(player_name)
                 batter_teams.append(player_team)
@@ -296,7 +298,8 @@ if __name__ == "__main__":
                     c = 0
                 item = {
                     "player_name": player_name,
-                    "current_team": player_team,
+                    "opposing_pitcher": pitcher_name,
+                    "team_name": player_team,
                     "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
                     "model": model_config["name"],
                     "home_run_odds": predicted_prob,
