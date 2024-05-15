@@ -286,6 +286,8 @@ if __name__ == "__main__":
                 if stats is not None and stats["At Bats"] < MIN_ABS_TO_PUSH:
                     log(f"Not enough ABs ({stats['At Bats']}) for {player_name}, skipping")
                     continue
+                if stats is None or len(stats) == 0:
+                    continue
                 input_data = scaler.transform([np.array(stats[model_config["features"]]).astype(float)])
                 predicted_prob = model.predict_proba(input_data)[0][1]
                 did_hit_home_run = r.player_map.get_player(player_name).did_hit_home_run(game_id)
