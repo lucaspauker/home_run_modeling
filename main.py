@@ -95,8 +95,8 @@ def get_database():
     return client["home_run_data"]
 
 def add_item(collection, item):
-    required_fields = ["player_name", "date", "model", "home_run_odds", "did_hit_hr"]
-    other_fields = ["team_name", "odds_data", "opposing_pitcher"]
+    required_fields = ["player_name", "date", "model", "home_run_odds", "did_hit_hr", "opposing_pitcher", "team_name"]
+    other_fields = ["odds_data"]
     for field in required_fields:
         if field not in item:
             log(f"{field} not in item", error=True)
@@ -250,14 +250,14 @@ if __name__ == "__main__":
 
             for bid in away_batter_ids:
                 player_query = statsapi.lookup_player(bid)[0]
-+               player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
+                player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
                 player_name = player_query["nameFirstLast"]
                 batter_names.append(player_name)
                 batter_teams.append(player_team)
                 opposing_pitchers.append(home_pitcher_name)
             for bid in home_batter_ids:
                 player_query = statsapi.lookup_player(bid)[0]
-+               player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
+                player_team = statsapi.lookup_team(int(player_query["currentTeam"]["id"]))[0]["name"]
                 player_name = player_query["nameFirstLast"]
                 batter_names.append(player_name)
                 batter_teams.append(player_team)
